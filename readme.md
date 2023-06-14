@@ -49,11 +49,9 @@ client_deviceActivity.onConnect(() => {
 client_deviceActivity.onMessage((topic, message) => {
 
     Check if the received data is not RSSI
-
     if (true) {
          Set publisherActive flag to true
     }
-
     Store the current packet time in Redis
 
 })
@@ -76,3 +74,8 @@ setInterval(() => {
 
 }, connectionTimeout)
 ```
+
+## Output
+
+![Terminal Output](images/terminal_output.png)
+![Influx DB records](images/InfluxDB_measurement.png)
