@@ -15,6 +15,7 @@ const topic = `devicesIn/${devID}/data`
 const redisClient = new Redis()
 const connectionTimeout = 10000 // Specify the connection timeout value in milliseconds
 let lastPacketTime = moment()
+let publisherActive = true // Flag to track the publisher status
 
 // Create MQTT client for device activity subscriber
 const client_DeviceActivity = mqtt.connect(`${protocol}://${host}:${port}`, {
@@ -37,13 +38,13 @@ client_DeviceActivity.on('connect', () => {
 
 // Handle message received event
 client_DeviceActivity.on('message', async (topic, message) => {
-  // console.log('Device Activity Monitored: Publisher is Active'.green)
-  const { time } = JSON.parse(message.toString())
+  const { time, data } = JSON.parse(message.toString())
 
-  // // Store the current packet time in Redis
-  // lastPacketTime = time
-
-  lastPacketTime = moment(time)
+  lastPacketTime = time && moment(time)
+  if (data && data[0].tag !== 'RSSI') {
+    // console.log(data)
+    publisherActive = true
+  }
 
   // Store the current packet time in Redis
   await redisClient.hset('connection_timeout', devID, lastPacketTime.valueOf())
@@ -56,8 +57,8 @@ setInterval(async () => {
   lastPacketTime = moment(parseInt(lastPacketTimeStr))
 
   const timeDiff = moment.duration(currentTime.diff(lastPacketTime)).asMilliseconds()
-  // console.log(timeDiff, connectionTimeout);
-  if (timeDiff > connectionTimeout) {
+  // console.log(timeDiff, connectionTimeout)
+  if (timeDiff > connectionTimeout && publisherActive) {
     // Publisher has failed to send data within the specified time
     const dataPacket = {
       device: devID,
@@ -71,5 +72,7 @@ setInterval(async () => {
     }
     client_DeviceActivity.publish(topic, JSON.stringify(dataPacket))
     console.log('Warning: Publisher is Offline. Sending RSSI : -1'.red)
+
+    publisherActive = false
   }
 }, connectionTimeout)
